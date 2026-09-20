@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ponto</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="container">
+  <header class="topbar">
+    <h1>Ponto</h1>
+    <div class="user-box">
+      <span id="userLabel"></span>
+      <button class="btn-secondary btn-small" id="usersBtn">Usuarios</button>
+      <button class="btn-danger btn-small" id="logoutBtn">Sair</button>
+    </div>
+  </header>
+
+  <div class="card clock-card">
+    <div class="clock-stack">
+      <div class="elapsed-timer" id="elapsedTimer">00:00:00</div>
+      <div class="elapsed-label" id="elapsedLabel">Nenhum ponto ativo</div>
+      <div class="wall-clock" id="wallClock">--:--:--</div>
+      <div class="wall-clock-label">Horario de Brasilia</div>
+
+      <div class="projects-grid" id="projectsGrid"></div>
+
+      <button class="btn-secondary" id="stopBtn" style="display:none">Parar ponto</button>
+    </div>
+    <button class="btn-primary btn-small new-project-btn" id="newProjectBtn">+ Novo projeto</button>
+  </div>
+
+  <div class="card">
+    <h2 class="section-title">Horas por projeto</h2>
+    <div class="chart-tabs">
+      <button class="chart-tab active" data-range="daily">Diario</button>
+      <button class="chart-tab" data-range="weekly">Semanal</button>
+      <button class="chart-tab" data-range="monthly">Mensal</button>
+      <button class="chart-tab" data-range="custom">Personalizado</button>
+    </div>
+
+    <div class="custom-range-bar" id="customRangeBar" style="display:none">
+      <div class="form-group" style="margin:0">
+        <label>De</label>
+        <input type="date" id="customStart" />
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Ate</label>
+        <input type="date" id="customEnd" />
+      </div>
+      <button class="btn-primary btn-small" id="applyCustomBtn">Aplicar</button>
+    </div>
+
+    <div class="filter-chips" id="filterChips"></div>
+
+    <div id="chartArea"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="projectModal" style="display:none">
+  <div class="modal">
+    <h3>Novo projeto</h3>
+    <div class="form-group">
+      <label>Nome</label>
+      <input id="projectNameInput" type="text" />
+    </div>
+    <div class="form-group">
+      <label>Icone</label>
+      <div class="icon-grid" id="iconGrid"></div>
+    </div>
+    <div class="form-group">
+      <label>Cor</label>
+      <div class="swatch-grid" id="swatchGrid"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="cancelProjectBtn">Cancelar</button>
+      <button class="btn-primary" id="saveProjectBtn">Criar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="usersModal" style="display:none">
+  <div class="modal">
+    <h3>Usuarios</h3>
+    <div class="form-group">
+      <label>Novo usuario</label>
+      <input id="newUsernameInput" type="text" placeholder="usuario" />
+      <input id="newPasswordInput" type="password" placeholder="senha (min 4 caracteres)" />
+    </div>
+    <div class="error-msg" id="userErrorMsg"></div>
+    <button class="btn-primary" id="createUserBtn" style="width:100%">Adicionar usuario</button>
+    <div class="users-list" id="usersList"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="closeUsersBtn">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script src="icons.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

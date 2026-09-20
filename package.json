@@ -1,0 +1,17 @@
+{
+  "name": "ponto-app",
+  "version": "1.0.0",
+  "description": "App de ponto por projeto, multiusuario, com graficos diario/semanal/mensal",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.3.0",
+    "cookie-parser": "^1.4.6",
+    "dayjs": "^1.11.13",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2"
+  }
+}

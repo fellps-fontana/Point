@@ -1,0 +1,15 @@
+services:
+  ponto:
+    build: .
+    container_name: ponto-app
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-4001}:4001"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PORT=4001
+      - TZ=America/Sao_Paulo
+      - JWT_SECRET=${JWT_SECRET:-troque_este_segredo}
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASS=${ADMIN_PASS:-admin123}

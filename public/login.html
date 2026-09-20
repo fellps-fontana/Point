@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ponto - Login</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="login-page">
+  <div class="card login-card">
+    <h1>Ponto</h1>
+    <p>Entre para bater o ponto dos seus projetos.</p>
+    <div class="error-msg" id="errorMsg"></div>
+    <div class="form-group">
+      <label for="username">Usuario</label>
+      <input id="username" type="text" autocomplete="username" />
+    </div>
+    <div class="form-group">
+      <label for="password">Senha</label>
+      <input id="password" type="password" autocomplete="current-password" />
+    </div>
+    <button class="btn-primary" id="loginBtn" style="width:100%">Entrar</button>
+  </div>
+</div>
+<script>
+async function checkSession() {
+  const r = await fetch('/api/auth/me');
+  if (r.ok) window.location.href = '/index.html';
+}
+checkSession();
+
+const errorMsg = document.getElementById('errorMsg');
+const loginBtn = document.getElementById('loginBtn');
+const usernameEl = document.getElementById('username');
+const passwordEl = document.getElementById('password');
+
+async function doLogin() {
+  errorMsg.textContent = '';
+  const username = usernameEl.value.trim();
+  const password = passwordEl.value;
+  if (!username || !password) {
+    errorMsg.textContent = 'Preencha usuario e senha.';
+    return;
+  }
+  loginBtn.disabled = true;
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({}));
+      errorMsg.textContent = data.error || 'Falha no login.';
+      loginBtn.disabled = false;
+      return;
+    }
+    window.location.href = '/index.html';
+  } catch (e) {
+    errorMsg.textContent = 'Nao foi possivel conectar ao servidor.';
+    loginBtn.disabled = false;
+  }
+}
+
+loginBtn.addEventListener('click', doLogin);
+passwordEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>
