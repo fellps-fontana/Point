@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS time_entries (
   project_id INTEGER NOT NULL,
   start_time TEXT NOT NULL,
   end_time TEXT,
+  note TEXT,
   FOREIGN KEY(user_id) REFERENCES users(id),
   FOREIGN KEY(project_id) REFERENCES projects(id)
 );
@@ -43,6 +44,13 @@ CREATE INDEX IF NOT EXISTS idx_time_entries_open ON time_entries(user_id, end_ti
 // Migracao leve pra bancos criados antes da coluna icon existir
 try {
   db.exec("ALTER TABLE projects ADD COLUMN icon TEXT NOT NULL DEFAULT 'briefcase'");
+} catch (e) {
+  // coluna ja existe, ok
+}
+
+// Migracao leve pra bancos criados antes da coluna note existir
+try {
+  db.exec('ALTER TABLE time_entries ADD COLUMN note TEXT');
 } catch (e) {
   // coluna ja existe, ok
 }

@@ -59,6 +59,7 @@ function renderStatus() {
   const timerEl = document.getElementById('elapsedTimer');
   const labelEl = document.getElementById('elapsedLabel');
   const stopBtn = document.getElementById('stopBtn');
+  const noteBox = document.getElementById('noteBox');
 
   if (currentStatus && currentStatus.open) {
     const open = currentStatus.open;
@@ -67,13 +68,47 @@ function renderStatus() {
     timerEl.style.color = open.project_color;
     labelEl.innerHTML = `<span class="status-dot" style="background:${open.project_color}"></span> ${escapeHtml(open.project_name)}`;
     stopBtn.style.display = 'inline-block';
+    noteBox.style.display = 'block';
+    renderNoteBox(open);
   } else {
     timerEl.textContent = '00:00:00';
     timerEl.className = 'elapsed-timer is-idle';
     timerEl.style.color = '';
     labelEl.textContent = 'Nenhum ponto ativo';
     stopBtn.style.display = 'none';
+    noteBox.style.display = 'none';
+    noteBox.innerHTML = '';
   }
+}
+
+function renderNoteBox(open) {
+  const noteBox = document.getElementById('noteBox');
+  if (open.note) {
+    noteBox.innerHTML = `<span class="note-text">"${escapeHtml(open.note)}"</span> <a class="note-link" id="editNoteLink">editar</a>`;
+  } else {
+    noteBox.innerHTML = `<a class="note-link" id="editNoteLink">+ adicionar nota</a>`;
+  }
+  document.getElementById('editNoteLink').addEventListener('click', () => startNoteEdit(open.id, open.note || ''));
+}
+
+function startNoteEdit(entryId, currentNote) {
+  const noteBox = document.getElementById('noteBox');
+  noteBox.innerHTML = `
+    <div class="note-edit-row">
+      <input type="text" id="noteInput" maxlength="500" placeholder="o que voce esta fazendo?" value="${escapeHtml(currentNote)}" />
+      <button class="btn-primary btn-small" id="saveNoteBtn">Salvar</button>
+    </div>
+  `;
+  const input = document.getElementById('noteInput');
+  input.focus();
+  const save = async () => {
+    const note = input.value.trim();
+    await api(`/api/entries/${entryId}/note`, { method: 'PATCH', body: JSON.stringify({ note }) });
+    if (currentStatus && currentStatus.open) currentStatus.open.note = note;
+    renderNoteBox(currentStatus.open);
+  };
+  document.getElementById('saveNoteBtn').addEventListener('click', save);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
 }
 
 function tickElapsed() {
@@ -184,10 +219,7 @@ function visibleProjects(projects) {
   return projects.filter((p) => !hiddenProjectIds.has(p.id));
 }
 
-function renderPie(data) {
-  const area = document.getElementById('chartArea');
-  const projects = visibleProjects(data.projects);
-  const bucket = data.buckets[0];
+function renderPieInto(area, bucket, projects, centerLabel, emptyMsg) {
   const rows = bucket.values
     .filter((v) => projects.some((p) => p.id === v.projectId) && v.hours > 0)
     .map((v) => ({ ...v, project: projects.find((p) => p.id === v.projectId) }))
@@ -196,7 +228,7 @@ function renderPie(data) {
   const total = rows.reduce((sum, r) => sum + r.hours, 0);
 
   if (rows.length === 0 || total === 0) {
-    area.innerHTML = '<div class="empty-state">Nenhuma hora registrada hoje ainda.</div>';
+    area.innerHTML = `<div class="empty-state">${escapeHtml(emptyMsg)}</div>`;
     return;
   }
 
@@ -243,12 +275,25 @@ function renderPie(data) {
         ${svg}
         <div style="position:absolute; text-align:center;">
           <div style="font-size:20px; font-weight:800;">${totalLabel}</div>
-          <div style="font-size:11px; color:var(--text-dim);">hoje</div>
+          <div style="font-size:11px; color:var(--text-dim);">${escapeHtml(centerLabel)}</div>
         </div>
       </div>
       <div class="pie-breakdown">${breakdown}</div>
     </div>
   `;
+}
+
+function renderPie(data) {
+  const area = document.getElementById('chartArea');
+  const projects = visibleProjects(data.projects);
+  renderPieInto(area, data.buckets[0], projects, 'hoje', 'Nenhuma hora registrada hoje ainda.');
+}
+
+function openBucketPie(bucket, projects, rangeLabel) {
+  document.getElementById('bucketPieTitle').textContent = `Detalhe - ${bucket.label}`;
+  const area = document.getElementById('bucketPieArea');
+  renderPieInto(area, bucket, projects, rangeLabel, 'Sem horas registradas nesse periodo.');
+  document.getElementById('bucketPieModal').style.display = 'flex';
 }
 
 function renderBars(data) {
@@ -274,6 +319,8 @@ function renderBars(data) {
   const topPad = 10;
   const usableHeight = height - bottomPad - topPad;
 
+  const clickable = data.range === 'weekly' || data.range === 'monthly';
+
   let svg = `<svg viewBox="0 0 ${width} ${height}" width="100%" style="max-width:${width}px; display:block; margin:0 auto;">`;
 
   buckets.forEach((bucket, i) => {
@@ -281,6 +328,12 @@ function renderBars(data) {
     let yCursor = height - bottomPad;
     const values = bucket.values.filter((v) => projects.some((p) => p.id === v.projectId));
     const total = values.reduce((sum, v) => sum + v.hours, 0);
+
+    svg += `<g data-bucket-index="${i}"${clickable && total > 0 ? ' class="bucket-clickable" style="cursor:pointer"' : ''}>`;
+    // faixa invisivel de clique cobrindo a coluna inteira (mais facil de acertar que so a barra)
+    if (clickable && total > 0) {
+      svg += `<rect x="${x - gap / 2}" y="0" width="${barWidth + gap}" height="${height}" fill="transparent"/>`;
+    }
 
     for (const v of values) {
       if (v.hours <= 0) continue;
@@ -298,10 +351,21 @@ function renderBars(data) {
     }
 
     svg += `<text x="${x + barWidth / 2}" y="${height - 8}" font-size="10" fill="#9096a8" text-anchor="middle">${escapeHtml(shortLabel(bucket, data.range))}<title>${escapeHtml(bucket.label)}</title></text>`;
+    svg += `</g>`;
   });
 
   svg += `</svg>`;
   area.innerHTML = svg;
+
+  if (clickable) {
+    area.querySelectorAll('.bucket-clickable').forEach((g) => {
+      const idx = Number(g.dataset.bucketIndex);
+      g.addEventListener('click', () => {
+        const rangeLabel = data.range === 'weekly' ? 'na semana' : 'no mes';
+        openBucketPie(buckets[idx], projects, rangeLabel);
+      });
+    });
+  }
 }
 
 function renderChart(data) {
@@ -421,6 +485,119 @@ function setupUsersModal() {
   });
 }
 
+// ---------- Historico ----------
+
+let historyOffset = 0;
+const HISTORY_PAGE_SIZE = 20;
+
+function fmtDateTime(iso) {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit', month: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  }).format(new Date(iso));
+}
+
+function fmtTimeOnly(iso) {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit', minute: '2-digit',
+  }).format(new Date(iso));
+}
+
+function entryDurationHours(entry) {
+  const end = entry.end_time ? new Date(entry.end_time) : new Date();
+  const start = new Date(entry.start_time);
+  return (end - start) / 1000 / 3600;
+}
+
+function renderHistoryRow(entry) {
+  const row = document.createElement('div');
+  row.className = 'history-row';
+  const isOpen = !entry.end_time;
+  const timeRange = isOpen
+    ? `${fmtDateTime(entry.start_time)} - em andamento`
+    : `${fmtDateTime(entry.start_time)} - ${fmtTimeOnly(entry.end_time)}`;
+
+  row.innerHTML = `
+    <span class="pie-icon" style="background:${entry.project.color}22; color:${entry.project.color}">${iconSvg(entry.project.icon, 15)}</span>
+    <div class="history-main">
+      <div class="history-top">
+        <span class="history-project" style="color:${entry.project.color}">${escapeHtml(entry.project.name)}</span>
+        <span class="history-duration">${fmtHoursExact(entryDurationHours(entry))}</span>
+      </div>
+      <div class="history-time">${timeRange}</div>
+      <div class="history-note" data-note-area></div>
+    </div>
+  `;
+
+  const noteArea = row.querySelector('[data-note-area]');
+  function renderRowNote() {
+    if (entry.note) {
+      noteArea.innerHTML = `<span class="note-text">"${escapeHtml(entry.note)}"</span> <a class="note-link">editar</a>`;
+    } else {
+      noteArea.innerHTML = `<a class="note-link">+ nota</a>`;
+    }
+    noteArea.querySelector('.note-link').addEventListener('click', () => {
+      noteArea.innerHTML = `
+        <div class="note-edit-row">
+          <input type="text" maxlength="500" value="${escapeHtml(entry.note || '')}" />
+          <button class="btn-primary btn-small">Salvar</button>
+        </div>
+      `;
+      const input = noteArea.querySelector('input');
+      input.focus();
+      const save = async () => {
+        const note = input.value.trim();
+        await api(`/api/entries/${entry.id}/note`, { method: 'PATCH', body: JSON.stringify({ note }) });
+        entry.note = note;
+        renderRowNote();
+      };
+      noteArea.querySelector('button').addEventListener('click', save);
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
+    });
+  }
+  renderRowNote();
+
+  return row;
+}
+
+async function loadHistory(reset) {
+  if (reset) {
+    historyOffset = 0;
+    document.getElementById('historyList').innerHTML = '';
+  }
+  const data = await api(`/api/entries?limit=${HISTORY_PAGE_SIZE}&offset=${historyOffset}`);
+  const list = document.getElementById('historyList');
+  for (const entry of data.entries) {
+    list.appendChild(renderHistoryRow(entry));
+  }
+  historyOffset += data.entries.length;
+  document.getElementById('loadMoreBtn').style.display = data.hasMore ? 'inline-block' : 'none';
+
+  if (historyOffset === 0) {
+    list.innerHTML = '<div class="empty-state">Nenhum lancamento ainda.</div>';
+  }
+}
+
+function setupHistoryModal() {
+  const modal = document.getElementById('historyModal');
+  document.getElementById('historyBtn').addEventListener('click', async () => {
+    modal.style.display = 'flex';
+    await loadHistory(true);
+  });
+  document.getElementById('closeHistoryBtn').addEventListener('click', () => {
+    modal.style.display = 'none';
+  });
+  document.getElementById('loadMoreBtn').addEventListener('click', () => loadHistory(false));
+}
+
+function setupBucketPieModal() {
+  document.getElementById('closeBucketPieBtn').addEventListener('click', () => {
+    document.getElementById('bucketPieModal').style.display = 'none';
+  });
+}
+
 function setupChartTabs() {
   document.querySelectorAll('.chart-tab').forEach((tab) => {
     tab.addEventListener('click', () => {
@@ -465,6 +642,8 @@ async function init() {
 
   setupProjectModal();
   setupUsersModal();
+  setupHistoryModal();
+  setupBucketPieModal();
   setupChartTabs();
 
   await loadStatus();

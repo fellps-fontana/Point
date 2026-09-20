@@ -12,6 +12,7 @@
     <h1>Ponto</h1>
     <div class="user-box">
       <span id="userLabel"></span>
+      <button class="btn-secondary btn-small" id="historyBtn">Historico</button>
       <button class="btn-secondary btn-small" id="usersBtn">Usuarios</button>
       <button class="btn-danger btn-small" id="logoutBtn">Sair</button>
     </div>
@@ -21,6 +22,7 @@
     <div class="clock-stack">
       <div class="elapsed-timer" id="elapsedTimer">00:00:00</div>
       <div class="elapsed-label" id="elapsedLabel">Nenhum ponto ativo</div>
+      <div class="note-box" id="noteBox" style="display:none"></div>
       <div class="wall-clock" id="wallClock">--:--:--</div>
       <div class="wall-clock-label">Horario de Brasilia</div>
 
@@ -93,6 +95,29 @@
     <div class="users-list" id="usersList"></div>
     <div class="modal-actions">
       <button class="btn-secondary" id="closeUsersBtn">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="bucketPieModal" style="display:none">
+  <div class="modal modal-wide">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0" id="bucketPieTitle">Detalhe</h3>
+      <button class="btn-secondary btn-small" id="closeBucketPieBtn">Fechar</button>
+    </div>
+    <div id="bucketPieArea" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="historyModal" style="display:none">
+  <div class="modal modal-wide">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0">Historico de lancamentos</h3>
+      <button class="btn-secondary btn-small" id="closeHistoryBtn">Fechar</button>
+    </div>
+    <div class="history-list" id="historyList"></div>
+    <div style="text-align:center; margin-top:12px;">
+      <button class="btn-secondary btn-small" id="loadMoreBtn" style="display:none">Carregar mais</button>
     </div>
   </div>
 </div>

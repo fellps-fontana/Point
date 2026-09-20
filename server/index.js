@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth');
 const projectRoutes = require('./routes/projects');
 const clockRoutes = require('./routes/clock');
 const reportRoutes = require('./routes/reports');
+const entriesRoutes = require('./routes/entries');
 const { requireAuth } = require('./auth');
 
 const app = express();
@@ -20,6 +21,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/clock', clockRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/entries', entriesRoutes);
 
 // bloqueia acesso direto ao index.html sem estar logado (checagem real e feita
 // pelo frontend via /api/auth/me, isso aqui e so pra nao servir a pagina cheia

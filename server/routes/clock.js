@@ -7,7 +7,7 @@ const router = express.Router();
 function getOpenEntry(userId) {
   return db
     .prepare(
-      `SELECT te.*, p.name AS project_name, p.color AS project_color
+      `SELECT te.*, p.name AS project_name, p.color AS project_color, p.icon AS project_icon
        FROM time_entries te JOIN projects p ON p.id = te.project_id
        WHERE te.user_id = ? AND te.end_time IS NULL`
     )
