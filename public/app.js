@@ -511,54 +511,126 @@ function entryDurationHours(entry) {
   return (end - start) / 1000 / 3600;
 }
 
+// Brasilia e UTC-3 fixo (sem horario de verao), entao a conversao e uma soma/subtracao simples,
+// independente do fuso do navegador de quem estiver acessando.
+function isoToBrtInputValue(iso) {
+  const brt = new Date(new Date(iso).getTime() - 3 * 60 * 60 * 1000);
+  return brt.toISOString().slice(0, 16);
+}
+
+function brtInputValueToIso(value) {
+  const asUtc = new Date(value + ':00.000Z');
+  return new Date(asUtc.getTime() + 3 * 60 * 60 * 1000).toISOString();
+}
+
 function renderHistoryRow(entry) {
   const row = document.createElement('div');
   row.className = 'history-row';
-  const isOpen = !entry.end_time;
-  const timeRange = isOpen
-    ? `${fmtDateTime(entry.start_time)} - em andamento`
-    : `${fmtDateTime(entry.start_time)} - ${fmtTimeOnly(entry.end_time)}`;
 
-  row.innerHTML = `
-    <span class="pie-icon" style="background:${entry.project.color}22; color:${entry.project.color}">${iconSvg(entry.project.icon, 15)}</span>
-    <div class="history-main">
-      <div class="history-top">
-        <span class="history-project" style="color:${entry.project.color}">${escapeHtml(entry.project.name)}</span>
-        <span class="history-duration">${fmtHoursExact(entryDurationHours(entry))}</span>
-      </div>
-      <div class="history-time">${timeRange}</div>
-      <div class="history-note" data-note-area></div>
-    </div>
-  `;
+  function renderView() {
+    const isOpen = !entry.end_time;
+    const timeRange = isOpen
+      ? `${fmtDateTime(entry.start_time)} - em andamento`
+      : `${fmtDateTime(entry.start_time)} - ${fmtTimeOnly(entry.end_time)}`;
 
-  const noteArea = row.querySelector('[data-note-area]');
-  function renderRowNote() {
-    if (entry.note) {
-      noteArea.innerHTML = `<span class="note-text">"${escapeHtml(entry.note)}"</span> <a class="note-link">editar</a>`;
-    } else {
-      noteArea.innerHTML = `<a class="note-link">+ nota</a>`;
-    }
-    noteArea.querySelector('.note-link').addEventListener('click', () => {
-      noteArea.innerHTML = `
-        <div class="note-edit-row">
-          <input type="text" maxlength="500" value="${escapeHtml(entry.note || '')}" />
-          <button class="btn-primary btn-small">Salvar</button>
+    row.innerHTML = `
+      <span class="pie-icon" style="background:${entry.project.color}22; color:${entry.project.color}">${iconSvg(entry.project.icon, 15)}</span>
+      <div class="history-main">
+        <div class="history-top">
+          <span class="history-project" style="color:${entry.project.color}">${escapeHtml(entry.project.name)}</span>
+          <span class="history-duration">${fmtHoursExact(entryDurationHours(entry))}</span>
         </div>
-      `;
-      const input = noteArea.querySelector('input');
-      input.focus();
-      const save = async () => {
-        const note = input.value.trim();
-        await api(`/api/entries/${entry.id}/note`, { method: 'PATCH', body: JSON.stringify({ note }) });
-        entry.note = note;
-        renderRowNote();
-      };
-      noteArea.querySelector('button').addEventListener('click', save);
-      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
+        <div class="history-time">${timeRange}</div>
+        <div class="history-note" data-note-area></div>
+        <div class="history-actions">
+          <a class="note-link" data-edit>Editar</a>
+          <a class="note-link history-delete" data-delete>Excluir</a>
+        </div>
+      </div>
+    `;
+
+    const noteArea = row.querySelector('[data-note-area]');
+    if (entry.note) {
+      noteArea.innerHTML = `<span class="note-text">"${escapeHtml(entry.note)}"</span>`;
+    } else {
+      noteArea.innerHTML = '';
+    }
+
+    row.querySelector('[data-edit]').addEventListener('click', renderEdit);
+    row.querySelector('[data-delete]').addEventListener('click', async () => {
+      if (!confirm(`Excluir esse lancamento de ${entry.project.name}?`)) return;
+      await api(`/api/entries/${entry.id}`, { method: 'DELETE' });
+      row.remove();
+      loadStatus();
+      loadChart(currentRange, { keepRange: true });
     });
   }
-  renderRowNote();
 
+  function renderEdit() {
+    const isOpen = !entry.end_time;
+    const projectOptions = projectsCache
+      .map((p) => `<option value="${p.id}" ${p.id === entry.project.id ? 'selected' : ''}>${escapeHtml(p.name)}</option>`)
+      .join('');
+
+    row.innerHTML = `
+      <div class="history-main" style="width:100%">
+        <div class="form-group" style="margin-bottom:8px">
+          <label>Projeto</label>
+          <select data-field="project">${projectOptions}</select>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <div class="form-group" style="margin-bottom:8px; flex:1; min-width:160px;">
+            <label>Inicio</label>
+            <input type="datetime-local" data-field="start" value="${isoToBrtInputValue(entry.start_time)}" />
+          </div>
+          <div class="form-group" style="margin-bottom:8px; flex:1; min-width:160px;">
+            <label>Fim</label>
+            ${isOpen
+              ? '<div style="color:var(--text-dim); font-size:13px; padding-top:8px;">em andamento</div>'
+              : `<input type="datetime-local" data-field="end" value="${isoToBrtInputValue(entry.end_time)}" />`}
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:8px">
+          <label>Nota</label>
+          <input type="text" data-field="note" maxlength="500" value="${escapeHtml(entry.note || '')}" />
+        </div>
+        <div class="error-msg" data-error></div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-primary btn-small" data-save>Salvar</button>
+          <button class="btn-secondary btn-small" data-cancel>Cancelar</button>
+        </div>
+      </div>
+    `;
+
+    row.querySelector('[data-cancel]').addEventListener('click', renderView);
+    row.querySelector('[data-save]').addEventListener('click', async () => {
+      const errorEl = row.querySelector('[data-error]');
+      errorEl.textContent = '';
+      const projectId = Number(row.querySelector('[data-field="project"]').value);
+      const startVal = row.querySelector('[data-field="start"]').value;
+      const endInput = row.querySelector('[data-field="end"]');
+      const note = row.querySelector('[data-field="note"]').value.trim();
+
+      const payload = {
+        project_id: projectId,
+        start_time: brtInputValueToIso(startVal),
+        note,
+      };
+      if (endInput) payload.end_time = brtInputValueToIso(endInput.value);
+
+      try {
+        const updated = await api(`/api/entries/${entry.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+        Object.assign(entry, updated);
+        renderView();
+        loadStatus();
+        loadChart(currentRange, { keepRange: true });
+      } catch (e) {
+        errorEl.textContent = e.message;
+      }
+    });
+  }
+
+  renderView();
   return row;
 }
 

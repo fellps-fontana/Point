@@ -487,6 +487,14 @@ button:active { transform: scale(0.97); }
 
 .history-note .note-text { color: var(--text); font-style: italic; }
 
+.history-actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.history-delete { color: var(--danger); }
+
 .modal input, .form-group input {
   width: 100%;
   padding: 10px 12px;
